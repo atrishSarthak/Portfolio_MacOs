@@ -1,11 +1,13 @@
 
-import { dockApps } from "#constants";
+import { dockApps } from "#constants/index.js";
 import { Tooltip } from "react-tooltip";
 import { useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import useWindowStore from "#store/window.js";
 
 export const Dock = () => {
+    const { windows, openWindow, closeWindow, focusWindow } = useWindowStore();
     const dockRef = useRef(null);
 
     useGSAP(() => {
@@ -17,19 +19,37 @@ export const Dock = () => {
         const animateIcons = (mouseX) => {
             const { left } = dock.getBoundingClientRect();
 
+            let closestIcon = null;
+            let minDistance = Infinity;
+
             icons.forEach((icon) => {
                 const { left: iconLeft, width } = icon.getBoundingClientRect();
                 const center = iconLeft - left + width / 2;
                 const distance = Math.abs(mouseX - center);
 
-                const intensity = Math.exp(-(distance ** 2.5) / 20000);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestIcon = icon;
+                }
+            });
 
-                gsap.to(icon, {
-                    scale: 1 + 0.25 * intensity,
-                    y: -15 * intensity,
-                    duration: 0.2,
-                    ease: "power2.out",
-                });
+
+            icons.forEach((icon) => {
+                if (icon === closestIcon) {
+                    gsap.to(icon, {
+                        scale: 1.4,
+                        y: -14,
+                        duration: 0.08,
+                        ease: "back.out(2.2)",
+                    });
+                } else {
+                    gsap.to(icon, {
+                        scale: 1,
+                        y: 0,
+                        duration: 0.08,
+                        ease: "power2.out",
+                    });
+                }
             });
         };
 
@@ -43,8 +63,8 @@ export const Dock = () => {
                 gsap.to(icon, {
                     scale: 1,
                     y: 0,
-                    duration: 0.3,
-                    ease: "power1.out",
+                    duration: 0.12,
+                    ease: "power2.out",
                 })
             );
 
@@ -58,7 +78,15 @@ export const Dock = () => {
     }, []);
 
     const toggleApp = (app) => {
-        console.log("Opening app:", app);
+        if (!app.canOpen) return;
+
+        const window = windows[app.id];
+
+        if (window.isOpen) {
+            closeWindow(app.id);
+        } else {
+            openWindow(app.id);
+        }
     };
 
     return (
@@ -80,7 +108,8 @@ export const Dock = () => {
                                 src={`/images/${icon}`}
                                 alt={name}
                                 loading="lazy"
-                                className={`w-[50px] h-[50px] object-contain ${canOpen ? "" : "opacity-60"}`}
+                                className={`w-[50px] h-[50px] object-contain ${canOpen ? "" : "opacity-60"
+                                    }`}
                             />
                         </button>
                     </div>
